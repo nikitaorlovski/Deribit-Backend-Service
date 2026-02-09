@@ -1,0 +1,2 @@
+class PriceNotFound(Exception):
+    pass

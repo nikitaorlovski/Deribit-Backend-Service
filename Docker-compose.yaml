@@ -1,0 +1,57 @@
+services:
+  app:
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - pg
+
+  pg:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_DB: ${db_name}
+      POSTGRES_USER: ${db_username}
+      POSTGRES_PASSWORD: ${db_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  pg_admin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - pg
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    command: celery -A celery_app:app worker -l info --pool=prefork --concurrency=1
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+
+  celery_beat:
+    build: .
+    command: celery -A celery_app:app beat -l info
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+
+volumes:
+  postgres_data:
